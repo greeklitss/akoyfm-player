@@ -1,14 +1,15 @@
 const radio = new RadioPlayer({
-    radioName: "AKOYFM", // Βάλτε το όνομα του σταθμού
-    streamUrl: "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254",
-   
+  const RADIO_NAME = "AKOYFM";
+const URL_STREAMING = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254";
+const URL_API_METADATA = "https://uk24freenew.listen2myradio.com:9254/status-json.xsl";
+
+// Τέλος προσθήκης 
 
 //API URL /
 
-const API_URL = 'https://twj.es/free/?url='+URL_STREAMING;
-const FALLBACK_API_URL = 'https://twj.es/metadata/?url=' + URL_STREAMING;
+const API_URL = URL_API_METADATA; 
+const FALLBACK_API_URL = URL_API_METADATA; // Visit https://api.vagalume.com.br/docs/ to get your API key
 
-// Visit https://api.vagalume.com.br/docs/ to get your API key
 const API_KEY = "18fe07917957c289983464588aabddfb";
 
 let userInteracted = true;
