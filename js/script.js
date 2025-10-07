@@ -1,8 +1,10 @@
 const radio = new RadioPlayer({
     radioName: "AKOYFM", // Βάλτε το όνομα του σταθμού
-    streamUrl: "https://uk25freenew.listen2myradio.com/live.mp3?typeportmount=s1_36848_stream_233370227", // Η ΔΙΚΗ ΣΑΣ ΡΟΗ
-    // ... (άλλες ρυθμίσεις)
+    streamUrl: "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254",
+   
+
 //API URL /
+
 const API_URL = 'https://twj.es/free/?url='+URL_STREAMING;
 const FALLBACK_API_URL = 'https://twj.es/metadata/?url=' + URL_STREAMING;
 
