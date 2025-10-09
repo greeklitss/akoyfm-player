@@ -8,16 +8,16 @@ const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254/";
 // 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
-// --- API FIX: Χρησιμοποιούμε AllOrigins Proxy για το Shoutcast status-json.xsl ---
-// Το status-json.xsl επιστρέφει το Icecast/Shoutcast V2 JSON
-const SHOUTOUT_API_BASE = URL_STREAMING + 'status-json.xsl'; 
-const ALLORIGINS_PROXY = 'https://api.allorigins.win/get?url='; // Ο πιο σταθερός Proxy
+// --- API FIX: Χρησιμοποιούμε Exstreamer Proxy για Shoutcast V1 Metadata ---
+// Ο συγκεκριμένος proxy διαβάζει τα metadata V1 και τα επιστρέφει σε απλό JSON
+const EXSTREAMER_PROXY_BASE = 'https://stream.exstreamer.com/api/v1/metadata?url=';
 
-const API_URL = ALLORIGINS_PROXY + encodeURIComponent(SHOUTOUT_API_BASE); 
-const FALLBACK_API_URL = ALLORIGINS_PROXY + encodeURIComponent(SHOUTOUT_API_BASE); 
-
+// Το encodeURIComponent είναι απαραίτητο εδώ
+const API_URL = EXSTREAMER_PROXY_BASE + encodeURIComponent(URL_STREAMING); 
+const FALLBACK_API_URL = EXSTREAMER_PROXY_BASE + encodeURIComponent(URL_STREAMING); 
 // Visit https://api.vagalume.com.br/docs/ to get your API key
-const API_KEY = "18fe07917957c289983464588aabddfb";
+const API_KEY = "18fe07917957c289983464588aabddfb";; 
+
 
 let userInteracted = true;
 let musicaAtual = null;
@@ -203,17 +203,17 @@ class Page {
 
 // **ΔΙΟΡΘΩΜΕΝΗ LOGIC** για Shoutcast V2 JSON (μέσω AllOrigins)
 async function getStreamingData() {
-    try {
+          try {
         let data = await fetchStreamingData(API_URL); 
         
-        // --- SHOUTCAST V2 / ICECAST V2 PARSING ---
-        // Αναζητούμε τον τίτλο στο πεδίο icestats.source[0].title
-        if (data && data.icestats && data.icestats.source && data.icestats.source.length > 0) { 
+        // --- SHOUTCAST V1 PARSING (Exstreamer Proxy) ---
+        // Αναζητούμε τον τίτλο στο πεδίο 'currentTrack' ή 'metadata'
+        if (data && data.currentTrack) { 
             const page = new Page();
             
-            // Το Shoutcast V2/Icecast V2 JSON επιστρέφει το metadata στο 'title' ως "Artist - Title"
-            const fullTitle = data.icestats.source[0].title || ""; 
-            const historyArray = []; 
+            // Το Exstreamer επιστρέφει το metadata στο 'currentTrack' ως "Artist - Title"
+            const fullTitle = data.currentTrack || ""; 
+            const historyArray = data.history || []; // Το ιστορικό μπορεί να είναι στο history
 
             let currentArtist = "Άγνωστος Καλλιτέχνης";
             let currentSong = "Άγνωστος Τίτλος";
@@ -266,35 +266,23 @@ async function getStreamingData() {
 
 
 // **ΔΙΟΡΘΩΜΕΝΗ fetchStreamingData** για AllOrigins
-async function fetchStreamingData(apiUrl) {
-    try {
-        // 1. Fetch από το AllOrigins Proxy
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-            throw new Error(`Erro na requisição da API: ${response.status} ${response.statusText}`);
-        }
-
-        // 2. Διαβάζουμε το JSON του AllOrigins
-        const allOriginsData = await response.json();
-        
-        // 3. Εξάγουμε το string contents
-        const contentString = allOriginsData.contents;
-
-        // 4. Μετατρέπουμε το string (που είναι το Shoutcast JSON) σε αντικείμενο
-        try {
-            const shoutcastData = JSON.parse(contentString);
-            return shoutcastData; // Επιστρέφουμε το Icecast V2 JSON
-        } catch (e) {
-            console.log("Αποτυχία JSON parsing από AllOrigins contents:", e);
-            // Δοκιμάζουμε να επιστρέψουμε το contents ως απλό κείμενο για fallback
-            return { title: contentString }; 
-        }
-        
-    } catch (error) {
-        console.log("Erro ao buscar dados de streaming da API:", error);
-        return null; 
+aasync function fetchStreamingData(apiUrl) {
+  try {
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+        // Εάν αποτύχει ο proxy, το σφάλμα θα εμφανιστεί εδώ
+        throw new Error(`Erro na requisição da API: ${response.status} ${response.statusText}`);
     }
-}
+    // Απλά επιστρέφουμε το JSON απευθείας, χωρίς AllOrigins parsing
+    const data = await response.json();
+    return data; 
+    
+  } catch (error) {
+    console.log("Erro ao buscar dados de streaming da API:", error);
+    return null; 
+  }
+} 
+    
 
 
 function changeImageSize(url, size) {
