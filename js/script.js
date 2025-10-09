@@ -424,7 +424,7 @@ document.getElementById('volume').oninput = function () {
     var page = new Page();
     page.changeVolumeIndicator(this.value);
 
-
+}; 
 
 window.togglePlay = function() { // **ΔΙΟΡΘΩΘΗΚΕ ΤΟ togglePlay**
     const playerButton = document.getElementById("playerButton");
