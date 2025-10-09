@@ -1,18 +1,20 @@
 // **ΟΡΙΣΜΟΣ ΔΙΕΥΘΥΝΣΕΩΝ (Η ΣΩΣΤΗ ΔΟΜΗ)**
 const RADIO_NAME = "AKOYFM"; 
 
+// **ΟΡΙΣΜΟΣ ΔΙΕΥΘΥΝΣΕΩΝ**
+const RADIO_NAME = "AKOYFM"; 
+
 // 1. URL_STREAMING: Χρησιμοποιείται ΜΟΝΟ για τα API των ΤΙΤΛΩΝ (Metadata: τίτλοι & ιστορικό)
+// Χρησιμοποιούμε τη διεύθυνση με την Port 
 const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254/"; 
 
 // 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
-// --- API FIX: Χρησιμοποιούμε Shoutcast API με CORS Proxy ---
-const SHOUTCAST_API_BASE = URL_STREAMING + 'status-json.xsl'; 
-const CORS_PROXY = 'https://corsproxy.io/?'; 
+// --- API FIX: Χρησιμοποιούμε εξειδικευμένο Shoutcast Metadata Proxy (twj.es) ---
+const API_URL = 'https://twj.es/free/?url=' + URL_STREAMING; 
+const FALLBACK_API_URL = 'https://twj.es/metadata/?url=' + URL_STREAMING;
 
-const API_URL = CORS_PROXY + encodeURIComponent(SHOUTCAST_API_BASE); // Νέο API με Proxy
-const FALLBACK_API_URL = CORS_PROXY + encodeURIComponent(SHOUTCAST_API_BASE); // Νέο Fallback με Proxy
 // Visit https://api.vagalume.com.br/docs/ to get your API key
 const API_KEY = "18fe07917957c289983464588aabddfb";
 
@@ -202,22 +204,21 @@ class Page {
 
 async function getStreamingData() {
     try {
-        let data = await fetchStreamingData(API_URL);
-        // ... (εδώ πρέπει να έχεις τον έλεγχο data.icestats...)
-        if (data && data.icestats && data.icestats.source && data.icestats.source.length > 0) { 
-            const page = new Page();
-            const songData = data.icestats.source[0];
-            const fullTitle = songData.title || "";
-            // ... (rest of the logic to extract currentArtist and currentSong)
-           }
+        // Καλούμε πρώτα το 'free' endpoint
+        let data = await fetchStreamingData(API_URL); 
+        
+        // Αν αποτύχει, καλούμε το 'metadata' fallback endpoint
+        if (!data || !data.title) {
+            data = await fetchStreamingData(FALLBACK_API_URL);
+        }
 
-        // --- SHOUTCAST/ICECAST V2 JSON PARSING ---
-        // data.icestats.source[0].title περιέχει "Artist - Title"
-        if (data && data.icestats && data.icestats.source && data.icestats.source.length > 0) { 
+        // --- TWJ.ES PROXY PARSING ---
+        if (data && data.title) { 
             const page = new Page();
-            const songData = data.icestats.source[0];
-            const fullTitle = songData.title || "";
-            const historyArray = songData.history || [];
+            
+            // Το twj.es επιστρέφει το metadata στο πεδίο 'title' ως "Artist - Title"
+            const fullTitle = data.title || ""; 
+            const historyArray = data.history || [];
 
             let currentArtist = "Άγνωστος Καλλιτέχνης";
             let currentSong = "Άγνωστος Τίτλος";
@@ -227,10 +228,10 @@ async function getStreamingData() {
                 currentArtist = parts[0].trim();
                 currentSong = parts[1].trim();
             } else if (fullTitle) {
+                // Εάν δεν υπάρχει παύλα, χρησιμοποιούμε όλο τον τίτλο ως τραγούδι.
                 currentArtist = fullTitle; 
                 currentSong = fullTitle; 
             }
-
 
             const safeCurrentSong = (currentSong || "").replace(/'/g, "''").replace(/&/g, "&amp;");
             const safeCurrentArtist = (currentArtist || "").replace(/'/g, "''").replace(/&/g, "&amp;");
@@ -246,15 +247,14 @@ async function getStreamingData() {
                 historicContainer.innerHTML = "";
 
                 const maxSongsToDisplay = 4;
-                // Η ιστορία έρχεται με το νεότερο τραγούδι πρώτο, εξαιρούμε το πρώτο (που είναι το current)
-                const limitedHistory = historyArray.slice(1, maxSongsToDisplay + 1); 
+                const limitedHistory = historyArray.slice(0, maxSongsToDisplay); 
 
                 for (let i = 0; i < limitedHistory.length; i++) {
                     const songInfo = limitedHistory[i];
                     const article = document.createElement("article");
                     article.classList.add("col-12", "col-md-6");
                     
-                    // Το history του Icecast V2 έχει το title ως "Artist - Title"
+                    // Το history του twj.es έχει το title ως "Artist - Title"
                     const histTitleFull = songInfo.title || "";
                     let histArtist = "Άγνωστος Καλλιτέχνης";
                     let histSong = "Άγνωστος Τίτλος";
@@ -278,7 +278,6 @@ async function getStreamingData() {
                       `;
                     historicContainer.appendChild(article);
                     try {
-                        // Το refreshHistoric χρειάζεται το αντικείμενο με το title
                         page.refreshHistoric(songInfo, i);
                     } catch (error) {
                         console.error("Error refreshing historic song:", error);
@@ -291,8 +290,7 @@ async function getStreamingData() {
         console.log("Erro ao buscar dados de streaming:", error);
     }
 }
-
-
+//... (το fetchStreamingData() μένει το ίδιο)
 async function fetchStreamingData(apiUrl) {
   try {
     // Το CORS proxy επιστρέφει το JSON απευθείας, οπότε δεν χρειάζεται να διαβάσουμε
