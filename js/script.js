@@ -197,9 +197,15 @@ async function getStreamingData() {
 
         if (data) {
             const page = new Page();
-            const currentSong = data.songtitle || (typeof data.song === "object" ? data.song.title : data.song);
-            const currentArtist = typeof data.artist === "object" ? data.artist.title : data.artist;
-
+            // ...
+        if (data && data.now_playing && data.now_playing.song) { // ΕΛΕΓΧΟΣ ΓΙΑ AZURACAST
+            const page = new Page();
+            
+            // Το AZURACAST API δίνει τίτλο και καλλιτέχνη στο data.now_playing.song
+            const currentSong = data.now_playing.song.title; 
+            const currentArtist = data.now_playing.song.artist; 
+            
+            // ... (Ο υπόλοιπος κώδικας για safeCurrentSong παραμένει ίδιος) ...
             const safeCurrentSong = (currentSong || "").replace(/'/g, "'").replace(/&/g, "&");
             const safeCurrentArtist = (currentArtist || "").replace(/'/g, "'").replace(/&/g, "&");
 
@@ -212,10 +218,18 @@ async function getStreamingData() {
 
                 const historicContainer = document.getElementById("historicSong");
                 historicContainer.innerHTML = "";
+                
+                // ΠΑΙΡΝΟΥΜΕ ΤΟ ΙΣΤΟΡΙΚΟ ΑΠΟ ΤΟ AZURACAST 
+                const historyArray = data.song_history || []; // Το AzuraCast έχει λίγο διαφορετική δομή
+                
+                // ΔΕΝ ΘΕΛΟΥΜΕ ΠΛΕΟΝ ΤΗΝ SLICE, ΟΠΟΤΕ ΒΓΑΖΟΥΜΕ ΤΗΝ ΓΡΑΜΜΗ 221
+                const limitedHistory = historyArray.slice(Math.max(0, historyArray.length - maxSongsToDisplay));
 
-                const historyArray = data.song_history
-                    ? data.song_history.map((item) => ({ song: item.song.title, artist: item.song.artist }))
-                    : data.history;
+                for (let i = 0; i < limitedHistory.length; i++) {
+                    const songInfo = limitedHistory[i].song; // ΠΡΟΣΟΧΗ! AZURACAST
+                    const article = document.createElement("article");
+                    article.classList.add("col-12", "col-md-6");
+                    // ... (Ο υπόλοιπος κώδικας για historicContainer παραμένει ίδιος) ...
 
                 const maxSongsToDisplay = 4;
                 const limitedHistory = historyArray.slice(Math.max(0, historyArray.length - maxSongsToDisplay));
