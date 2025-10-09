@@ -522,8 +522,8 @@ document.addEventListener('keydown', function (event) {
             page.changeVolumeIndicator(volumeValue * 10);
             break;
     }
-});
 
+})
 function intToDecimal(vol) {
     return vol / 100;
 }
