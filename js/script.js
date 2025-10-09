@@ -2,8 +2,8 @@
 const RADIO_NAME = "AKOYFM"; 
 
 // 1. URL_STREAMING: Χρησιμοποιείται ΜΟΝΟ για τα API των ΤΙΤΛΩΝ (Metadata: τίτλοι & ιστορικό)
-// Χρησιμοποιούμε τη διεύθυνση με την Port 
-const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254/"; 
+// Χρησιμοποιούμε τη διεύθυνση με την Port (ΣΗΜΑΝΤΙΚΟ: ΧΩΡΙΣ ΤΗΝ / ΣΤΟ ΤΕΛΟΣ)
+const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254"; 
 
 // 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
@@ -12,12 +12,12 @@ const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount
 // Ο συγκεκριμένος proxy διαβάζει τα metadata V1 και τα επιστρέφει σε απλό JSON
 const EXSTREAMER_PROXY_BASE = 'https://stream.exstreamer.com/api/v1/metadata?url=';
 
-// Το encodeURIComponent είναι απαραίτητο εδώ
+// Το encodeURIComponent είναι απαραίτητο
 const API_URL = EXSTREAMER_PROXY_BASE + encodeURIComponent(URL_STREAMING); 
 const FALLBACK_API_URL = EXSTREAMER_PROXY_BASE + encodeURIComponent(URL_STREAMING); 
-// Visit https://api.vagalume.com.br/docs/ to get your API key
-const API_KEY = "18fe07917957c289983464588aabddfb";; 
 
+// Visit https://api.vagalume.com.br/docs/ to get your API key
+const API_KEY = "18fe07917957c289983464588aabddfb";
 
 let userInteracted = true;
 let musicaAtual = null;
@@ -30,8 +30,8 @@ window.addEventListener('load', () => {
     page.changeTitlePage();
     page.setVolume();
 
-    const player = new Player();
-    // player.play(); // ΑΦΑΙΡΕΘΗΚΕ ΓΙΑ ΝΑ ΦΥΓΕΙ ΤΟ NotAllowedError
+    // Δεν καλούμε play() εδώ για να αποφύγουμε το NotAllowedError
+    // Ο player ελέγχεται από το togglePlay()
 
     // Καλούμε τη συνάρτηση getStreamingData αμέσως
     getStreamingData();
@@ -201,13 +201,13 @@ class Page {
     }
 }
 
-// **ΔΙΟΡΘΩΜΕΝΗ LOGIC** για Shoutcast V2 JSON (μέσω AllOrigins)
+// **ΔΙΟΡΘΩΜΕΝΗ LOGIC** για Shoutcast V1 XML (μέσω Exstreamer)
 async function getStreamingData() {
-          try {
+    try {
         let data = await fetchStreamingData(API_URL); 
         
         // --- SHOUTCAST V1 PARSING (Exstreamer Proxy) ---
-        // Αναζητούμε τον τίτλο στο πεδίο 'currentTrack' ή 'metadata'
+        // Αναζητούμε τον τίτλο στο πεδίο 'currentTrack' που επιστρέφει ο Exstreamer
         if (data && data.currentTrack) { 
             const page = new Page();
             
@@ -240,17 +240,33 @@ async function getStreamingData() {
 
                 const historicContainer = document.getElementById("historicSong");
                 historicContainer.innerHTML = ""; // Καθαρίζουμε το ιστορικό
-
-                // Εμφανίζουμε 4 κενά "No Song / No Artist" articles 
+                
+                // Δημιουργία ιστορικού (μπορεί να χρειαστεί προσαρμογή του parsing αν δεν λειτουργήσει το historyArray)
                 for (let i = 0; i < 4; i++) {
+                    const info = historyArray[i] || {};
+                    const historyTitle = info.title || (i === 0 ? safeCurrentSong : "No Song / No Artist"); 
+                    
                     const article = document.createElement("article");
                     article.classList.add("col-12", "col-md-6");
                     
+                    // Εδώ θα χρειαζόταν custom parsing για το V1 XML, αλλά βασιζόμαστε στο Exstreamer JSON
+                    let histSong = "No Song";
+                    let histArtist = "No Artist";
+                    
+                    if(historyTitle.includes(' - ')) {
+                        const parts = historyTitle.split(' - ');
+                        histArtist = parts[0].trim();
+                        histSong = parts[1].trim();
+                    } else if (historyTitle !== "No Song / No Artist") {
+                        histArtist = historyTitle;
+                        histSong = historyTitle;
+                    }
+
                     article.innerHTML = `
                         <div class="cover-historic" style="background-image: url('img/cover.png');"></div>
                         <div class="music-info">
-                          <p class="song">No Song</p>
-                          <p class="artist">No Artist</p>
+                          <p class="song">${histSong}</p>
+                          <p class="artist">${histArtist}</p>
                         </div>
                       `;
                     historicContainer.appendChild(article);
@@ -258,22 +274,21 @@ async function getStreamingData() {
                 
                 musicaAtual = safeCurrentSong;
             }
-        } // Εάν αποτύχει η V2 λογική, θα μπορούσατε να δοκιμάσετε και άλλη πηγή εδώ.
+        } // Εάν το Exstreamer δεν επιστρέψει currentTrack
     } catch (error) {
         console.log("Erro ao buscar dados de streaming:", error);
     }
 }
 
 
-// **ΔΙΟΡΘΩΜΕΝΗ fetchStreamingData** για AllOrigins
-aasync function fetchStreamingData(apiUrl) {
+// **ΔΙΟΡΘΩΜΕΝΗ fetchStreamingData** για Exstreamer (απλό JSON)
+async function fetchStreamingData(apiUrl) {
   try {
     const response = await fetch(apiUrl);
     if (!response.ok) {
-        // Εάν αποτύχει ο proxy, το σφάλμα θα εμφανιστεί εδώ
         throw new Error(`Erro na requisição da API: ${response.status} ${response.statusText}`);
     }
-    // Απλά επιστρέφουμε το JSON απευθείας, χωρίς AllOrigins parsing
+    // Ο Exstreamer proxy επιστρέφει απευθείας το JSON V1
     const data = await response.json();
     return data; 
     
@@ -281,8 +296,7 @@ aasync function fetchStreamingData(apiUrl) {
     console.log("Erro ao buscar dados de streaming da API:", error);
     return null; 
   }
-} 
-    
+}
 
 
 function changeImageSize(url, size) {
@@ -412,7 +426,7 @@ document.getElementById('volume').oninput = function () {
 }
 
 
-window.togglePlay = function() { // **ΟΡΙΣΜΟΣ ΤΗΣ togglePlay**
+window.togglePlay = function() { // **ΔΙΟΡΘΩΘΗΚΕ ΤΟ togglePlay**
     const playerButton = document.getElementById("playerButton");
     const isPlaying = playerButton.classList.contains("fa-pause-circle");
   
@@ -480,7 +494,7 @@ document.addEventListener('keydown', function (event) {
             slideVolume.value = decimalToInt(audio.volume);
             page.changeVolumeIndicator(decimalToInt(audio.volume));
             break;
-        case ' ':
+        case ' ':\
         case 'Spacebar':
             togglePlay();
             break;
@@ -517,4 +531,3 @@ function intToDecimal(vol) {
 function decimalToInt(vol) {
     return vol * 100;
 }
-// ΤΕΛΟΣ - (Αφαιρέθηκε η περιττή αγκύλη } από εδώ)
