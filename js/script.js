@@ -8,10 +8,11 @@ const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254/";
 // 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ (Η real διεύθυνση που μου έδωσες)
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
-//API URL /
-// Τα API για τους τίτλους χρησιμοποιούν υποχρεωτικά το URL_STREAMING
-const API_URL = 'https://twj.es/free/?url=' + URL_STREAMING; // **ΔΙΟΡΘΩΣΗ: ΑΥΤΗ ΕΙΝΑΙ Η ΣΩΣΤΗ ΓΡΑΜΜΗ**
-const FALLBACK_API_URL = 'https://twj.es/metadata/?url=' + URL_STREAMING;
+// API URL (CORS FIX: Χρησιμοποιούμε το AzuraCast API)
+const AZURA_API_URL = 'https://uk24freenew.listen2myradio.com/api/live/nowplaying';
+
+const API_URL = AZURA_API_URL; // Νέο API
+const FALLBACK_API_URL = AZURA_API_URL; // Νέο Fallback
 
 // Visit https://api.vagalume.com.br/docs/ to get your API key
 const API_KEY = "18fe07917957c289983464588aabddfb";
@@ -28,7 +29,7 @@ window.addEventListener('load', () => {
     page.setVolume();
 
     const player = new Player();
-    player.play();
+    // player.play(); // ΑΦΑΙΡΟΥΜΕ ΤΟ AUTO-PLAY ΓΙΑ ΝΑ ΦΥΓΕΙ ΤΟ NotAllowedError
 
     // Chama a função getStreamingData inmediatamente
     getStreamingData();
@@ -86,11 +87,13 @@ class Page {
             const coverHistoric = document.querySelectorAll("#historicSong article .cover-historic")[n];
 
             const defaultCoverArt = "img/cover.png";
-            const songTitle = typeof info.song === "object" ? info.song.title : info.song;
-            const songArtist = typeof info.artist === "object" ? info.artist.title : info.artist;
+            
+            // Το info.song είναι πλέον αντικείμενο από το AzuraCast API
+            const songTitle = info.song.title || "Desconhecido"; 
+            const songArtist = info.song.artist || "Desconhecido"; 
 
-            songName.innerHTML = songTitle || "Desconhecido";
-            artistName.innerHTML = songArtist || "Desconhecido";
+            songName.innerHTML = songTitle;
+            artistName.innerHTML = songArtist;
 
             try {
                 const data = await getDataFromITunes(songArtist, songTitle, defaultCoverArt, defaultCoverArt);
@@ -195,17 +198,13 @@ async function getStreamingData() {
             data = await fetchStreamingData(FALLBACK_API_URL);
         }
 
-        if (data) {
-            const page = new Page();
-            // ...
-        if (data && data.now_playing && data.now_playing.song) { // ΕΛΕΓΧΟΣ ΓΙΑ AZURACAST
+        if (data && data.now_playing && data.now_playing.song) { // ΕΛΕΓΧΟΣ ΓΙΑ AZURACAST JSON
             const page = new Page();
             
-            // Το AZURACAST API δίνει τίτλο και καλλιτέχνη στο data.now_playing.song
+            // ΝΕΟΣ ΤΡΟΠΟΣ ΑΝΑΓΝΩΣΗΣ ΤΙΤΛΟΥ/ΚΑΛΛΙΤΕΧΝΗ ΑΠΟ AZURACAST API
             const currentSong = data.now_playing.song.title; 
             const currentArtist = data.now_playing.song.artist; 
-            
-            // ... (Ο υπόλοιπος κώδικας για safeCurrentSong παραμένει ίδιος) ...
+
             const safeCurrentSong = (currentSong || "").replace(/'/g, "'").replace(/&/g, "&");
             const safeCurrentArtist = (currentArtist || "").replace(/'/g, "'").replace(/&/g, "&");
 
@@ -218,21 +217,12 @@ async function getStreamingData() {
 
                 const historicContainer = document.getElementById("historicSong");
                 historicContainer.innerHTML = "";
-                
-                // ΠΑΙΡΝΟΥΜΕ ΤΟ ΙΣΤΟΡΙΚΟ ΑΠΟ ΤΟ AZURACAST 
-                const historyArray = data.song_history || []; // Το AzuraCast έχει λίγο διαφορετική δομή
-                
-                // ΔΕΝ ΘΕΛΟΥΜΕ ΠΛΕΟΝ ΤΗΝ SLICE, ΟΠΟΤΕ ΒΓΑΖΟΥΜΕ ΤΗΝ ΓΡΑΜΜΗ 221
-                const limitedHistory = historyArray.slice(Math.max(0, historyArray.length - maxSongsToDisplay));
 
-                for (let i = 0; i < limitedHistory.length; i++) {
-                    const songInfo = limitedHistory[i].song; // ΠΡΟΣΟΧΗ! AZURACAST
-                    const article = document.createElement("article");
-                    article.classList.add("col-12", "col-md-6");
-                    // ... (Ο υπόλοιπος κώδικας για historicContainer παραμένει ίδιος) ...
+                // Το historyArray λαμβάνεται απευθείας από το AzuraCast
+                const historyArray = data.song_history || [];
 
                 const maxSongsToDisplay = 4;
-                const limitedHistory = historyArray.slice(Math.max(0, historyArray.length - maxSongsToDisplay));
+                const limitedHistory = historyArray.slice(0, maxSongsToDisplay); // Παίρνουμε τα 4 πιο πρόσφατα
 
                 for (let i = 0; i < limitedHistory.length; i++) {
                     const songInfo = limitedHistory[i];
@@ -241,8 +231,8 @@ async function getStreamingData() {
                     article.innerHTML = `
                         <div class="cover-historic" style="background-image: url('img/cover.png');"></div>
                         <div class="music-info">
-                          <p class="song">${songInfo.song || "Desconhecido"}</p>
-                          <p class="artist">${songInfo.artist || "Desconhecido"}</p>
+                          <p class="song">${songInfo.song.title || "Desconhecido"}</p>
+                          <p class="artist">${songInfo.song.artist || "Desconhecido"}</p>
                         </div>
                       `;
                     historicContainer.appendChild(article);
