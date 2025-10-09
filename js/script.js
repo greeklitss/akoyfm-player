@@ -1,10 +1,10 @@
 const radio = new RadioPlayer({
- // **ΟΡΙΣΜΟΣ ΜΕΤΑΒΛΗΤΩΝ: ΕΔΩ ΗΤΑΝ ΤΟ ΛΑΘΟΣ**
-const RADIO_NAME = "AKOYFM"; // Ορίζουμε το όνομα του σταθμού
-const URL_STREAMING = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340"; // Ορίζουμε τη σωστή διεύθυνση ροής
+const RADIO_NAME = "AKOYFM"; 
+const URL_STREAMING = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
+const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
 //API URL /
-const API_URL = 'https://twj.es/free/?url='+URL_STREAMING;
+const API_URL = 'https://twj.es/free/?url='+URL_STREAMING; 
 const FALLBACK_API_URL = 'https://twj.es/metadata/?url=' + URL_STREAMING;
 
 // Visit https://api.vagalume.com.br/docs/ to get your API key
@@ -13,10 +13,7 @@ const API_KEY = "18fe07917957c289983464588aabddfb";
 let userInteracted = true;
 
 let musicaAtual = null;
-
-// Cache για την API του iTunes
 const cache = {};
-//... Ο υπόλοιπος κώδικας συνεχίζει κανονικά ...
 
 let userInteracted = true;
 
