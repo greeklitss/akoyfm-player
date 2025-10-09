@@ -1,6 +1,3 @@
-// **ΟΡΙΣΜΟΣ ΔΙΕΥΘΥΝΣΕΩΝ (Η ΣΩΣΤΗ ΔΟΜΗ)**
-const RADIO_NAME = "AKOYFM"; 
-
 // **ΟΡΙΣΜΟΣ ΔΙΕΥΘΥΝΣΕΩΝ**
 const RADIO_NAME = "AKOYFM"; 
 
