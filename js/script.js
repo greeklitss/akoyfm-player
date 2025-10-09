@@ -8,12 +8,8 @@ const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254";
 // 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
-// --- API FIX: Χρησιμοποιούμε twj.es Proxy ---
-const ENCODED_URL = encodeURIComponent(URL_STREAMING);
-const API_URL = 'https://twj.es/free/?url=' + ENCODED_URL; 
-const FALLBACK_API_URL = 'https://twj.es/metadata/?url=' + ENCODED_URL;
-const API_KEY = "18fe07917957c289983464588aabddfb";
-
+const API_URL = URL_STREAMING + '/7.html'; 
+const FALLBACK_API_URL = API_URL;
 let userInteracted = true;
 let musicaAtual = null;
 
@@ -206,20 +202,12 @@ async function fetchStreamingData(url) {
     });
 
     if (!response.ok) {
-        // Εάν αποτύχει η κλήση, προσπαθούμε με το fallback URL
-        if (url === API_URL) {
-            console.log("Προσπαθώ με το Fallback API URL...");
-            // Κάνουμε αναδρομική κλήση με το fallback URL
-            return fetchStreamingData(FALLBACK_API_URL);
-        }
-        // Εάν αποτύχει και η δεύτερη, πετάμε σφάλμα
         throw new Error(`HTTP error! status: ${response.status} from ${url}`);
     }
 
-    // Ο proxy (π.χ. twj.es) επιστρέφει JSON, οπότε το διαβάζουμε ως JSON
-    return await response.json(); 
+    // Το 7.html είναι plain text (όχι JSON), οπότε χρησιμοποιούμε response.text()
+    return await response.text(); 
 }
-
 // ----------------------------------------------------------------------
 async function getStreamingData() {
     try {
