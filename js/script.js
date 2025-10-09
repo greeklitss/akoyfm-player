@@ -8,13 +8,14 @@ const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254/";
 // 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
-// --- API FIX: Χρησιμοποιούμε εξειδικευμένο Shoutcast Metadata Proxy (twj.es) ---
-const API_URL = 'https://twj.es/free/?url=' + URL_STREAMING; 
-const FALLBACK_API_URL = 'https://twj.es/metadata/?url=' + URL_STREAMING;
+// --- API FIX: Χρησιμοποιούμε AllOrigins Proxy για το Shoutcast status-json.xsl ---
+// Σημείωση: Το endpoint status-json.xsl δίνει 404 μόνο του, αλλά με το AllOrigins 
+// μπορεί να το διαβάσει ως κείμενο, και μετά να το κάνουμε parse.
+const SHOUTCAST_API_BASE = URL_STREAMING + 'status-json.xsl'; 
+const ALLORIGINS_PROXY = 'https://api.allorigins.win/get?url='; // Νέος Proxy
 
-// Visit https://api.vagalume.com.br/docs/ to get your API key
-const API_KEY = "18fe07917957c289983464588aabddfb";
-
+const API_URL = ALLORIGINS_PROXY + encodeURIComponent(SHOUTOUT_API_BASE); 
+const FALLBACK_API_URL = ALLORIGINS_PROXY + encodeURIComponent(SHOUTOUT_API_BASE);
 let userInteracted = true;
 let musicaAtual = null;
 
@@ -199,94 +200,29 @@ class Page {
 }
 
 
-async function getStreamingData() {
-    try {
-        // Καλούμε πρώτα το 'free' endpoint
-        let data = await fetchStreamingData(API_URL); 
-        
-        // Αν αποτύχει, καλούμε το 'metadata' fallback endpoint
-        if (!data || !data.title) {
-            data = await fetchStreamingData(FALLBACK_API_URL);
-        }
-
-        // --- TWJ.ES PROXY PARSING ---
-        if (data && data.title) { 
-            const page = new Page();
-            
-            // Το twj.es επιστρέφει το metadata στο πεδίο 'title' ως "Artist - Title"
-            const fullTitle = data.title || ""; 
-            const historyArray = data.history || [];
-
-            let currentArtist = "Άγνωστος Καλλιτέχνης";
-            let currentSong = "Άγνωστος Τίτλος";
-
-            if (fullTitle && fullTitle.includes(' - ')) {
-                const parts = fullTitle.split(' - ');
-                currentArtist = parts[0].trim();
-                currentSong = parts[1].trim();
-            } else if (fullTitle) {
-                // Εάν δεν υπάρχει παύλα, χρησιμοποιούμε όλο τον τίτλο ως τραγούδι.
-                currentArtist = fullTitle; 
-                currentSong = fullTitle; 
-            }
-
-            const safeCurrentSong = (currentSong || "").replace(/'/g, "''").replace(/&/g, "&amp;");
-            const safeCurrentArtist = (currentArtist || "").replace(/'/g, "''").replace(/&/g, "&amp;");
-
-            if (safeCurrentSong !== musicaAtual) {
-                document.title = `${safeCurrentSong} - ${safeCurrentArtist} | ${RADIO_NAME}`;
-
-                page.refreshCover(safeCurrentSong, safeCurrentArtist);
-                page.refreshCurrentSong(safeCurrentSong, safeCurrentArtist);
-                page.refreshLyric(safeCurrentSong, safeCurrentArtist);
-
-                const historicContainer = document.getElementById("historicSong");
-                historicContainer.innerHTML = "";
-
-                const maxSongsToDisplay = 4;
-                const limitedHistory = historyArray.slice(0, maxSongsToDisplay); 
-
-                for (let i = 0; i < limitedHistory.length; i++) {
-                    const songInfo = limitedHistory[i];
-                    const article = document.createElement("article");
-                    article.classList.add("col-12", "col-md-6");
-                    
-                    // Το history του twj.es έχει το title ως "Artist - Title"
-                    const histTitleFull = songInfo.title || "";
-                    let histArtist = "Άγνωστος Καλλιτέχνης";
-                    let histSong = "Άγνωστος Τίτλος";
-
-                    if (histTitleFull.includes(' - ')) {
-                        const parts = histTitleFull.split(' - ');
-                        histArtist = parts[0].trim();
-                        histSong = parts[1].trim();
-                    } else {
-                        histArtist = histTitleFull;
-                        histSong = histTitleFull;
-                    }
-
-
-                    article.innerHTML = `
-                        <div class="cover-historic" style="background-image: url('img/cover.png');"></div>
-                        <div class="music-info">
-                          <p class="song">${histSong}</p>
-                          <p class="artist">${histArtist}</p>
-                        </div>
-                      `;
-                    historicContainer.appendChild(article);
-                    try {
-                        page.refreshHistoric(songInfo, i);
-                    } catch (error) {
-                        console.error("Error refreshing historic song:", error);
-                    }
-                }
-                musicaAtual = safeCurrentSong;
-            }
-        }
-    } catch (error) {
-        console.log("Erro ao buscar dados de streaming:", error);
+async function fetchStreamingData(apiUrl) {
+  try {
+    // 1. Fetch από το AllOrigins Proxy
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      throw new Error(`Erro na requisição da API: ${response.status} ${response.statusText}`);
     }
-}
+
+    // 2. Διαβάζουμε το JSON του AllOrigins
+    const allOriginsData = await response.json();
+    
+    // 3. Εξάγουμε το string contents
+    const contentString = allOriginsData.contents;
+
+    // 4. Μετατρέπουμε το string (που είναι το Shoutcast JSON) σε αντικείμενο
+    const shoutcastData = JSON.parse(contentString);
+    
+    return shoutcastData;
+  } catch (error) {
+    console.log("Erro ao buscar dados de streaming da API:", error);
+    return null; 
+  }
+}}
 //... (το fetchStreamingData() μένει το ίδιο)
 async function fetchStreamingData(apiUrl) {
   try {
