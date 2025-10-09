@@ -207,18 +207,18 @@ async function getStreamingData() {
         let data = await fetchStreamingData(API_URL); 
         
         // --- SHOUTCAST V1 PARSING (Exstreamer Proxy) ---
-        // Αναζητούμε τον τίτλο στο πεδίο 'currentTrack' που επιστρέφει ο Exstreamer
         if (data && data.currentTrack) { 
             const page = new Page();
             
             // Το Exstreamer επιστρέφει το metadata στο 'currentTrack' ως "Artist - Title"
             const fullTitle = data.currentTrack || ""; 
-            const historyArray = data.history || []; // Το ιστορικό μπορεί να είναι στο history
+            const historyArray = data.history || []; 
 
             let currentArtist = "Άγνωστος Καλλιτέχνης";
             let currentSong = "Άγνωστος Τίτλος";
 
-            if (fullTitle && fullTitle.includes(' - ')) {
+            // Διαχωρισμός τίτλου και καλλιτέχνη
+            if (fullTitle.includes(' - ')) {
                 const parts = fullTitle.split(' - ');
                 currentArtist = parts[0].trim();
                 currentSong = parts[1].trim();
@@ -227,7 +227,6 @@ async function getStreamingData() {
                 currentArtist = fullTitle; 
                 currentSong = fullTitle; 
             }
-
             const safeCurrentSong = (currentSong || "").replace(/'/g, "''").replace(/&/g, "&amp;");
             const safeCurrentArtist = (currentArtist || "").replace(/'/g, "''").replace(/&/g, "&amp;");
 
