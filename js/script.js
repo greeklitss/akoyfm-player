@@ -494,7 +494,7 @@ document.addEventListener('keydown', function (event) {
             slideVolume.value = decimalToInt(audio.volume);
             page.changeVolumeIndicator(decimalToInt(audio.volume));
             break;
-        case ' ':\
+        case ' ':
         case 'Spacebar':
             togglePlay();
             break;
