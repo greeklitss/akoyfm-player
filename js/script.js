@@ -1,9 +1,15 @@
-const radio = new RadioPlayer({
+// **ΟΡΙΣΜΟΣ ΔΙΕΥΘΥΝΣΕΩΝ (Η ΜΟΝΗ ΣΩΣΤΗ ΔΙΑΡΡΥΘΜΙΣΗ)**
 const RADIO_NAME = "AKOYFM"; 
-const URL_STREAMING = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
+
+// 1. URL_STREAMING: Χρησιμοποιείται ΜΟΝΟ για τα API των ΤΙΤΛΩΝ (Metadata: τίτλοι & ιστορικό)
+// Αυτή η διεύθυνση είναι η σωστή για τα API των τίτλων (Listen2MyRadio με Port)
+const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254/"; 
+
+// 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ (Η real διεύθυνση που μου δώσατε)
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
 //API URL /
+// Τα API για τους τίτλους χρησιμοποιούν υποχρεωτικά το URL_STREAMING
 const API_URL = 'https://twj.es/free/?url='+URL_STREAMING; 
 const FALLBACK_API_URL = 'https://twj.es/metadata/?url=' + URL_STREAMING;
 
@@ -11,17 +17,11 @@ const FALLBACK_API_URL = 'https://twj.es/metadata/?url=' + URL_STREAMING;
 const API_KEY = "18fe07917957c289983464588aabddfb";
 
 let userInteracted = true;
-
-let musicaAtual = null;
-const cache = {};
-
-let userInteracted = true;
-
 let musicaAtual = null;
 
 // Cache para a API do iTunes
 const cache = {};
-
+   
 window.addEventListener('load', () => { 
     const page = new Page();
     page.changeTitlePage();
