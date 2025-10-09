@@ -9,13 +9,16 @@ const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254/";
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
 // --- API FIX: Χρησιμοποιούμε AllOrigins Proxy για το Shoutcast status-json.xsl ---
-// Σημείωση: Το endpoint status-json.xsl δίνει 404 μόνο του, αλλά με το AllOrigins 
-// μπορεί να το διαβάσει ως κείμενο, και μετά να το κάνουμε parse.
-const SHOUTCAST_API_BASE = URL_STREAMING + 'status-json.xsl'; 
-const ALLORIGINS_PROXY = 'https://api.allorigins.win/get?url='; // Νέος Proxy
+// Το status-json.xsl επιστρέφει το Icecast/Shoutcast V2 JSON
+const SHOUTOUT_API_BASE = URL_STREAMING + 'status-json.xsl'; 
+const ALLORIGINS_PROXY = 'https://api.allorigins.win/get?url='; // Ο πιο σταθερός Proxy
 
 const API_URL = ALLORIGINS_PROXY + encodeURIComponent(SHOUTOUT_API_BASE); 
-const FALLBACK_API_URL = ALLORIGINS_PROXY + encodeURIComponent(SHOUTOUT_API_BASE);
+const FALLBACK_API_URL = ALLORIGINS_PROXY + encodeURIComponent(SHOUTOUT_API_BASE); 
+
+// Visit https://api.vagalume.com.br/docs/ to get your API key
+const API_KEY = "18fe07917957c289983464588aabddfb";
+
 let userInteracted = true;
 let musicaAtual = null;
 
@@ -87,10 +90,10 @@ class Page {
 
             const defaultCoverArt = "img/cover.png";
             
-            // Για Shoutcast, το info.title είναι "Artist - Title"
-            const songTitleFull = info.title || "Desconhecido - Desconhecido"; 
-            let songTitle = "Desconhecido"; 
-            let songArtist = "Desconhecido"; 
+            // Το info.title εδώ είναι για συμβατότητα με την twj.es λογική
+            const songTitleFull = info.title || "Άγνωστος - Άγνωστος"; 
+            let songTitle = "Άγνωστος"; 
+            let songArtist = "Άγνωστος"; 
 
             if (songTitleFull.includes(' - ')) {
                 const parts = songTitleFull.split(' - ');
@@ -108,8 +111,7 @@ class Page {
                 const data = await getDataFromITunes(songArtist, songTitle, defaultCoverArt, defaultCoverArt);
                 coverHistoric.style.backgroundImage = "url(" + (data.art || defaultCoverArt) + ")";
             } catch (error) {
-                console.log("Erro ao buscar dados da API do iTunes:");
-                console.error(error);
+                console.log("Error fetching iTunes data for historic song:", error);
                 coverHistoric.style.backgroundImage = "url(" + defaultCoverArt + ")";
             }
 
@@ -199,54 +201,103 @@ class Page {
     }
 }
 
+// **ΔΙΟΡΘΩΜΕΝΗ LOGIC** για Shoutcast V2 JSON (μέσω AllOrigins)
+async function getStreamingData() {
+    try {
+        let data = await fetchStreamingData(API_URL); 
+        
+        // --- SHOUTCAST V2 / ICECAST V2 PARSING ---
+        // Αναζητούμε τον τίτλο στο πεδίο icestats.source[0].title
+        if (data && data.icestats && data.icestats.source && data.icestats.source.length > 0) { 
+            const page = new Page();
+            
+            // Το Shoutcast V2/Icecast V2 JSON επιστρέφει το metadata στο 'title' ως "Artist - Title"
+            const fullTitle = data.icestats.source[0].title || ""; 
+            const historyArray = []; 
 
-async function fetchStreamingData(apiUrl) {
-  try {
-    // 1. Fetch από το AllOrigins Proxy
-    const response = await fetch(apiUrl);
-    if (!response.ok) {
-      throw new Error(`Erro na requisição da API: ${response.status} ${response.statusText}`);
+            let currentArtist = "Άγνωστος Καλλιτέχνης";
+            let currentSong = "Άγνωστος Τίτλος";
+
+            if (fullTitle && fullTitle.includes(' - ')) {
+                const parts = fullTitle.split(' - ');
+                currentArtist = parts[0].trim();
+                currentSong = parts[1].trim();
+            } else if (fullTitle) {
+                // Εάν δεν υπάρχει παύλα, χρησιμοποιούμε όλο τον τίτλο ως τραγούδι.
+                currentArtist = fullTitle; 
+                currentSong = fullTitle; 
+            }
+
+            const safeCurrentSong = (currentSong || "").replace(/'/g, "''").replace(/&/g, "&amp;");
+            const safeCurrentArtist = (currentArtist || "").replace(/'/g, "''").replace(/&/g, "&amp;");
+
+            if (safeCurrentSong !== musicaAtual) {
+                document.title = `${safeCurrentSong} - ${safeCurrentArtist} | ${RADIO_NAME}`;
+
+                page.refreshCover(safeCurrentSong, safeCurrentArtist);
+                page.refreshCurrentSong(safeCurrentSong, safeCurrentArtist);
+                page.refreshLyric(safeCurrentSong, safeCurrentArtist);
+
+                const historicContainer = document.getElementById("historicSong");
+                historicContainer.innerHTML = ""; // Καθαρίζουμε το ιστορικό
+
+                // Εμφανίζουμε 4 κενά "No Song / No Artist" articles 
+                for (let i = 0; i < 4; i++) {
+                    const article = document.createElement("article");
+                    article.classList.add("col-12", "col-md-6");
+                    
+                    article.innerHTML = `
+                        <div class="cover-historic" style="background-image: url('img/cover.png');"></div>
+                        <div class="music-info">
+                          <p class="song">No Song</p>
+                          <p class="artist">No Artist</p>
+                        </div>
+                      `;
+                    historicContainer.appendChild(article);
+                }
+                
+                musicaAtual = safeCurrentSong;
+            }
+        } // Εάν αποτύχει η V2 λογική, θα μπορούσατε να δοκιμάσετε και άλλη πηγή εδώ.
+    } catch (error) {
+        console.log("Erro ao buscar dados de streaming:", error);
     }
+}
 
-    // 2. Διαβάζουμε το JSON του AllOrigins
-    const allOriginsData = await response.json();
-    
-    // 3. Εξάγουμε το string contents
-    const contentString = allOriginsData.contents;
 
-    // 4. Μετατρέπουμε το string (που είναι το Shoutcast JSON) σε αντικείμενο
-    const shoutcastData = JSON.parse(contentString);
-    
-    return shoutcastData;
-  } catch (error) {
-    console.log("Erro ao buscar dados de streaming da API:", error);
-    return null; 
-  }
-}}
-//... (το fetchStreamingData() μένει το ίδιο)
+// **ΔΙΟΡΘΩΜΕΝΗ fetchStreamingData** για AllOrigins
 async function fetchStreamingData(apiUrl) {
-  try {
-    // Το CORS proxy επιστρέφει το JSON απευθείας, οπότε δεν χρειάζεται να διαβάσουμε
-    // το header (γιατί το proxy το κάνει server-side).
-    const response = await fetch(apiUrl);
-    if (!response.ok) {
-      throw new Error(`Erro na requisição da API: ${response.status} ${response.statusText}`);
-    }
+    try {
+        // 1. Fetch από το AllOrigins Proxy
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            throw new Error(`Erro na requisição da API: ${response.status} ${response.statusText}`);
+        }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.log("Erro ao buscar dados de streaming da API:", error);
-    return null; 
-  }
+        // 2. Διαβάζουμε το JSON του AllOrigins
+        const allOriginsData = await response.json();
+        
+        // 3. Εξάγουμε το string contents
+        const contentString = allOriginsData.contents;
+
+        // 4. Μετατρέπουμε το string (που είναι το Shoutcast JSON) σε αντικείμενο
+        try {
+            const shoutcastData = JSON.parse(contentString);
+            return shoutcastData; // Επιστρέφουμε το Icecast V2 JSON
+        } catch (e) {
+            console.log("Αποτυχία JSON parsing από AllOrigins contents:", e);
+            // Δοκιμάζουμε να επιστρέψουμε το contents ως απλό κείμενο για fallback
+            return { title: contentString }; 
+        }
+        
+    } catch (error) {
+        console.log("Erro ao buscar dados de streaming da API:", error);
+        return null; 
+    }
 }
 
 
 function changeImageSize(url, size) {
-// ... (rest of helper functions and classes)
-// ...
-// ... (rest of helper functions and classes)
-// ...
   const parts = url.split("/");
   const filename = parts.pop();
   const newFilename = `${size}${filename.substring(filename.lastIndexOf("."))}`;
@@ -335,18 +386,18 @@ class Player {
 // On play, change the button to pause
 audio.onplay = function () {
     var botao = document.getElementById('playerButton');
-    var bplay = document.getElementById('buttonPlay');
-    if (botao.className === 'fa fa-play-circle') { 
-        botao.className = 'fa fa-pause-circle';
+    if (botao.classList.contains('fa-play-circle')) { 
+        botao.classList.remove('fa-play-circle');
+        botao.classList.add('fa-pause-circle');
     }
 }
 
 // On pause, change the button to play
 audio.onpause = function () {
     var botao = document.getElementById('playerButton');
-    var bplay = document.getElementById('buttonPlay');
-    if (botao.className === 'fa fa-pause-circle') { 
-        botao.className = 'fa fa-play-circle';
+    if (botao.classList.contains('fa-pause-circle')) { 
+        botao.classList.remove('fa-pause-circle');
+        botao.classList.add('fa-play-circle');
     }
 }
 
@@ -386,8 +437,9 @@ window.togglePlay = function() { // **ΟΡΙΣΜΟΣ ΤΗΣ togglePlay**
       playerButton.classList.remove("fa-play-circle");
       playerButton.classList.add("fa-pause-circle");
       playerButton.style.textShadow = "0 0 5px black";
-      audio.load();
-      audio.play();
+      // Χρησιμοποιούμε player.play() για να εκτελεστούν οι ρυθμίσεις έντασης
+      const player = new Player();
+      player.play();
     }
   }
 
@@ -477,3 +529,4 @@ function intToDecimal(vol) {
 function decimalToInt(vol) {
     return vol * 100;
 }
+// ΤΕΛΟΣ - (Αφαιρέθηκε η περιττή αγκύλη } από εδώ)
