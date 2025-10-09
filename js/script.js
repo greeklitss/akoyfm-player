@@ -8,11 +8,15 @@ const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254/";
 // 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ (Η real διεύθυνση που μου έδωσες)
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
-// API URL (CORS FIX: Χρησιμοποιούμε το AzuraCast API)
-const AZURA_API_URL = 'https://uk24freenew.listen2myradio.com/api/live/nowplaying';
+// --- API FIX: Χρησιμοποιούμε Shoutcast API με CORS Proxy ---
+// Shoutcast/Icecast endpoint (Πιο αξιόπιστο για listen2myradio)
+const SHOUTCAST_API_BASE = URL_STREAMING + 'status-json.xsl'; 
 
-const API_URL = AZURA_API_URL; // Νέο API
-const FALLBACK_API_URL = AZURA_API_URL; // Νέο Fallback
+// Χρησιμοποιούμε ένα CORS proxy για να λειτουργήσει το fetch από το GitHub Pages
+const CORS_PROXY = 'https://corsproxy.io/?'; 
+
+const API_URL = CORS_PROXY + encodeURIComponent(SHOUTCAST_API_BASE); // Νέο API με Proxy
+const FALLBACK_API_URL = CORS_PROXY + encodeURIComponent(SHOUTCAST_API_BASE); // Νέο Fallback με Proxy
 
 // Visit https://api.vagalume.com.br/docs/ to get your API key
 const API_KEY = "18fe07917957c289983464588aabddfb";
@@ -20,7 +24,7 @@ const API_KEY = "18fe07917957c289983464588aabddfb";
 let userInteracted = true;
 let musicaAtual = null;
 
-// Cache para a API do iTunes
+// Cache για την API του iTunes
 const cache = {};
    
 window.addEventListener('load', () => { 
@@ -29,15 +33,15 @@ window.addEventListener('load', () => {
     page.setVolume();
 
     const player = new Player();
-    // player.play(); // ΑΦΑΙΡΟΥΜΕ ΤΟ AUTO-PLAY ΓΙΑ ΝΑ ΦΥΓΕΙ ΤΟ NotAllowedError
+    // player.play(); // ΑΦΑΙΡΕΘΗΚΕ ΓΙΑ ΝΑ ΦΥΓΕΙ ΤΟ NotAllowedError
 
-    // Chama a função getStreamingData inmediatamente
+    // Καλούμε τη συνάρτηση getStreamingData αμέσως
     getStreamingData();
 
-    // Define o intervalo para atualizar os dados de streaming a cada 10 segundos
+    // Define το interval για να ενημερώνει τα δεδομένα streaming κάθε 10 δευτερόλεπτα
     const streamingInterval = setInterval(getStreamingData, 10000);
 
-    // Ajusta a altura της cover
+    // Ρυθμίζει την height της cover
     const coverArt = document.querySelector('.cover-album'); 
     if (coverArt) { 
       coverArt.style.height = `${coverArt.offsetWidth}px`;
@@ -88,9 +92,19 @@ class Page {
 
             const defaultCoverArt = "img/cover.png";
             
-            // Το info.song είναι πλέον αντικείμενο από το AzuraCast API
-            const songTitle = info.song.title || "Desconhecido"; 
-            const songArtist = info.song.artist || "Desconhecido"; 
+            // Για Shoutcast, το info.title είναι "Artist - Title"
+            const songTitleFull = info.title || "Desconhecido - Desconhecido"; 
+            let songTitle = "Desconhecido"; 
+            let songArtist = "Desconhecido"; 
+
+            if (songTitleFull.includes(' - ')) {
+                const parts = songTitleFull.split(' - ');
+                songArtist = parts[0].trim();
+                songTitle = parts[1].trim();
+            } else {
+                songArtist = songTitleFull;
+                songTitle = songTitleFull;
+            }
 
             songName.innerHTML = songTitle;
             artistName.innerHTML = songArtist;
@@ -198,15 +212,29 @@ async function getStreamingData() {
             data = await fetchStreamingData(FALLBACK_API_URL);
         }
 
-        if (data && data.now_playing && data.now_playing.song) { // ΕΛΕΓΧΟΣ ΓΙΑ AZURACAST JSON
+        // --- SHOUTCAST/ICECAST V2 JSON PARSING ---
+        // data.icestats.source[0].title περιέχει "Artist - Title"
+        if (data && data.icestats && data.icestats.source && data.icestats.source.length > 0) { 
             const page = new Page();
-            
-            // ΝΕΟΣ ΤΡΟΠΟΣ ΑΝΑΓΝΩΣΗΣ ΤΙΤΛΟΥ/ΚΑΛΛΙΤΕΧΝΗ ΑΠΟ AZURACAST API
-            const currentSong = data.now_playing.song.title; 
-            const currentArtist = data.now_playing.song.artist; 
+            const songData = data.icestats.source[0];
+            const fullTitle = songData.title || "";
+            const historyArray = songData.history || [];
 
-            const safeCurrentSong = (currentSong || "").replace(/'/g, "'").replace(/&/g, "&");
-            const safeCurrentArtist = (currentArtist || "").replace(/'/g, "'").replace(/&/g, "&");
+            let currentArtist = "Άγνωστος Καλλιτέχνης";
+            let currentSong = "Άγνωστος Τίτλος";
+
+            if (fullTitle && fullTitle.includes(' - ')) {
+                const parts = fullTitle.split(' - ');
+                currentArtist = parts[0].trim();
+                currentSong = parts[1].trim();
+            } else if (fullTitle) {
+                currentArtist = fullTitle; 
+                currentSong = fullTitle; 
+            }
+
+
+            const safeCurrentSong = (currentSong || "").replace(/'/g, "''").replace(/&/g, "&amp;");
+            const safeCurrentArtist = (currentArtist || "").replace(/'/g, "''").replace(/&/g, "&amp;");
 
             if (safeCurrentSong !== musicaAtual) {
                 document.title = `${safeCurrentSong} - ${safeCurrentArtist} | ${RADIO_NAME}`;
@@ -218,25 +246,40 @@ async function getStreamingData() {
                 const historicContainer = document.getElementById("historicSong");
                 historicContainer.innerHTML = "";
 
-                // Το historyArray λαμβάνεται απευθείας από το AzuraCast
-                const historyArray = data.song_history || [];
-
                 const maxSongsToDisplay = 4;
-                const limitedHistory = historyArray.slice(0, maxSongsToDisplay); // Παίρνουμε τα 4 πιο πρόσφατα
+                // Η ιστορία έρχεται με το νεότερο τραγούδι πρώτο, εξαιρούμε το πρώτο (που είναι το current)
+                const limitedHistory = historyArray.slice(1, maxSongsToDisplay + 1); 
 
                 for (let i = 0; i < limitedHistory.length; i++) {
                     const songInfo = limitedHistory[i];
                     const article = document.createElement("article");
                     article.classList.add("col-12", "col-md-6");
+                    
+                    // Το history του Icecast V2 έχει το title ως "Artist - Title"
+                    const histTitleFull = songInfo.title || "";
+                    let histArtist = "Άγνωστος Καλλιτέχνης";
+                    let histSong = "Άγνωστος Τίτλος";
+
+                    if (histTitleFull.includes(' - ')) {
+                        const parts = histTitleFull.split(' - ');
+                        histArtist = parts[0].trim();
+                        histSong = parts[1].trim();
+                    } else {
+                        histArtist = histTitleFull;
+                        histSong = histTitleFull;
+                    }
+
+
                     article.innerHTML = `
                         <div class="cover-historic" style="background-image: url('img/cover.png');"></div>
                         <div class="music-info">
-                          <p class="song">${songInfo.song.title || "Desconhecido"}</p>
-                          <p class="artist">${songInfo.song.artist || "Desconhecido"}</p>
+                          <p class="song">${histSong}</p>
+                          <p class="artist">${histArtist}</p>
                         </div>
                       `;
                     historicContainer.appendChild(article);
                     try {
+                        // Το refreshHistoric χρειάζεται το αντικείμενο με το title
                         page.refreshHistoric(songInfo, i);
                     } catch (error) {
                         console.error("Error refreshing historic song:", error);
@@ -253,6 +296,8 @@ async function getStreamingData() {
 
 async function fetchStreamingData(apiUrl) {
   try {
+    // Το CORS proxy επιστρέφει το JSON απευθείας, οπότε δεν χρειάζεται να διαβάσουμε
+    // το header (γιατί το proxy το κάνει server-side).
     const response = await fetch(apiUrl);
     if (!response.ok) {
       throw new Error(`Erro na requisição da API: ${response.status} ${response.statusText}`);
@@ -268,6 +313,10 @@ async function fetchStreamingData(apiUrl) {
 
 
 function changeImageSize(url, size) {
+// ... (rest of helper functions and classes)
+// ...
+// ... (rest of helper functions and classes)
+// ...
   const parts = url.split("/");
   const filename = parts.pop();
   const newFilename = `${size}${filename.substring(filename.lastIndexOf("."))}`;
