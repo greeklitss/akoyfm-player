@@ -332,4 +332,165 @@ class Player {
             var defaultVolume = document.getElementById('volume').value;
 
             if (typeof (Storage) !== 'undefined') {
-                if (localStorage.getItem
+                if (localStorage.getItem('volume') !== null) {
+                    audio.volume = intToDecimal(localStorage.getItem('volume'));
+                } else {
+                    audio.volume = intToDecimal(defaultVolume);
+                }
+            } else {
+                audio.volume = intToDecimal(defaultVolume);
+            }
+            document.getElementById('volIndicator').innerHTML = defaultVolume;
+        };
+
+        this.pause = function () {
+            audio.pause();
+        };
+    }
+}
+
+// On play, change the button to pause
+audio.onplay = function () {
+    var botao = document.getElementById('playerButton');
+    var bplay = document.getElementById('buttonPlay');
+    if (botao.className === 'fa fa-play-circle') { 
+        botao.className = 'fa fa-pause-circle';
+    }
+}
+
+// On pause, change the button to play
+audio.onpause = function () {
+    var botao = document.getElementById('playerButton');
+    var bplay = document.getElementById('buttonPlay');
+    if (botao.className === 'fa fa-pause-circle') { 
+        botao.className = 'fa fa-play-circle';
+    }
+}
+
+// Unmute when volume changed
+audio.onvolumechange = function () {
+    if (audio.volume > 0) {
+        audio.muted = false;
+    }
+}
+
+audio.onerror = function () {
+    var confirmacao = confirm('Stream Down / Network Error. \nClick OK to try again.');
+
+    if (confirmacao) {
+        window.location.reload();
+    }
+}
+
+document.getElementById('volume').oninput = function () {
+    audio.volume = intToDecimal(this.value);
+
+    var page = new Page();
+    page.changeVolumeIndicator(this.value);
+}
+
+
+window.togglePlay = function() { // **ΟΡΙΣΜΟΣ ΤΗΣ togglePlay**
+    const playerButton = document.getElementById("playerButton");
+    const isPlaying = playerButton.classList.contains("fa-pause-circle");
+  
+    if (isPlaying) {
+      playerButton.classList.remove("fa-pause-circle");
+      playerButton.classList.add("fa-play-circle");
+      playerButton.style.textShadow = "0 0 5px black";
+      audio.pause();
+    } else {
+      playerButton.classList.remove("fa-play-circle");
+      playerButton.classList.add("fa-pause-circle");
+      playerButton.style.textShadow = "0 0 5px black";
+      audio.load();
+      audio.play();
+    }
+  }
+
+function volumeUp() {
+    var vol = audio.volume;
+    if(audio) {
+        if(audio.volume >= 0 && audio.volume < 1) {
+            audio.volume = (vol + .01).toFixed(2);
+        }
+    }
+}
+
+function volumeDown() {
+    var vol = audio.volume;
+    if(audio) {
+        if(audio.volume >= 0.01 && audio.volume <= 1) {
+            audio.volume = (vol - .01).toFixed(2);
+        }
+    }
+}
+
+function mute() {
+    if (!audio.muted) {
+        document.getElementById('volIndicator').innerHTML = 0;
+        document.getElementById('volume').value = 0;
+        audio.volume = 0;
+        audio.muted = true;
+    } else {
+        var localVolume = localStorage.getItem('volume');
+        document.getElementById('volIndicator').innerHTML = localVolume;
+        document.getElementById('volume').value = localVolume;
+        audio.volume = intToDecimal(localVolume);
+        audio.muted = false;
+    }
+}
+
+document.addEventListener('keydown', function (event) {
+    var key = event.key;
+    var slideVolume = document.getElementById('volume');
+    var page = new Page();
+
+    switch (key) {
+        case 'ArrowUp':
+            volumeUp();
+            slideVolume.value = decimalToInt(audio.volume);
+            page.changeVolumeIndicator(decimalToInt(audio.volume));
+            break;
+        case 'ArrowDown':
+            volumeDown();
+            slideVolume.value = decimalToInt(audio.volume);
+            page.changeVolumeIndicator(decimalToInt(audio.volume));
+            break;
+        case ' ':
+        case 'Spacebar':
+            togglePlay();
+            break;
+        case 'p':
+        case 'P':
+            togglePlay();
+            break;
+        case 'm':
+        case 'M':
+            mute();
+            break;
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+            var volumeValue = parseInt(key);
+            audio.volume = volumeValue / 10;
+            slideVolume.value = volumeValue * 10;
+            page.changeVolumeIndicator(volumeValue * 10);
+            break;
+    }
+}); 
+
+function intToDecimal(vol) {
+    return vol / 100;
+}
+
+function decimalToInt(vol) {
+    return vol * 100;
+}
