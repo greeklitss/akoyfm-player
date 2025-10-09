@@ -2,22 +2,17 @@
 const RADIO_NAME = "AKOYFM"; 
 
 // 1. URL_STREAMING: Χρησιμοποιείται ΜΟΝΟ για τα API των ΤΙΤΛΩΝ (Metadata: τίτλοι & ιστορικό)
-// Χρησιμοποιούμε τη διεύθυνση με την Port 
 const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254/"; 
 
-// 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ (Η real διεύθυνση που μου έδωσες)
+// 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
 // --- API FIX: Χρησιμοποιούμε Shoutcast API με CORS Proxy ---
-// Shoutcast/Icecast endpoint (Πιο αξιόπιστο για listen2myradio)
 const SHOUTCAST_API_BASE = URL_STREAMING + 'status-json.xsl'; 
-
-// Χρησιμοποιούμε ένα CORS proxy για να λειτουργήσει το fetch από το GitHub Pages
 const CORS_PROXY = 'https://corsproxy.io/?'; 
 
 const API_URL = CORS_PROXY + encodeURIComponent(SHOUTCAST_API_BASE); // Νέο API με Proxy
 const FALLBACK_API_URL = CORS_PROXY + encodeURIComponent(SHOUTCAST_API_BASE); // Νέο Fallback με Proxy
-
 // Visit https://api.vagalume.com.br/docs/ to get your API key
 const API_KEY = "18fe07917957c289983464588aabddfb";
 
@@ -208,9 +203,13 @@ class Page {
 async function getStreamingData() {
     try {
         let data = await fetchStreamingData(API_URL);
-        if (!data) {
-            data = await fetchStreamingData(FALLBACK_API_URL);
-        }
+        // ... (εδώ πρέπει να έχεις τον έλεγχο data.icestats...)
+        if (data && data.icestats && data.icestats.source && data.icestats.source.length > 0) { 
+            const page = new Page();
+            const songData = data.icestats.source[0];
+            const fullTitle = songData.title || "";
+            // ... (rest of the logic to extract currentArtist and currentSong)
+           }
 
         // --- SHOUTCAST/ICECAST V2 JSON PARSING ---
         // data.icestats.source[0].title περιέχει "Artist - Title"
