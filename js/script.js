@@ -427,23 +427,23 @@ document.getElementById('volume').oninput = function () {
 
 
 window.togglePlay = function() { // **ΔΙΟΡΘΩΘΗΚΕ ΤΟ togglePlay**
-    const playerButton = document.getElementById("playerButton");
-    const isPlaying = playerButton.classList.contains("fa-pause-circle");
-  
-    if (isPlaying) {
-      playerButton.classList.remove("fa-pause-circle");
-      playerButton.classList.add("fa-play-circle");
-      playerButton.style.textShadow = "0 0 5px black";
-      audio.pause();
-    } else {
-      playerButton.classList.remove("fa-play-circle");
-      playerButton.classList.add("fa-pause-circle");
-      playerButton.style.textShadow = "0 0 5px black";
-      // Χρησιμοποιούμε player.play() για να εκτελεστούν οι ρυθμίσεις έντασης
-      const player = new Player();
-      player.play();
-    }
-  }
+    const playerButton = document.getElementById("playerButton");
+    const isPlaying = playerButton.classList.contains("fa-pause-circle");
+  
+    if (isPlaying) {
+      playerButton.classList.remove("fa-pause-circle");
+      playerButton.classList.add("fa-play-circle");
+      playerButton.style.textShadow = "0 0 5px black";
+      audio.pause();
+    } else {
+      playerButton.classList.remove("fa-play-circle");
+      playerButton.classList.add("fa-pause-circle");
+      playerButton.style.textShadow = "0 0 5px black";
+      // Χρησιμοποιούμε player.play() για να εκτελεστούν οι ρυθμίσεις έντασης
+      const player = new Player();
+      player.play();
+    }
+}
 
 function volumeUp() {
     var vol = audio.volume;
