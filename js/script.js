@@ -8,15 +8,10 @@ const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254";
 // 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
-// --- API FIX: Χρησιμοποιούμε Exstreamer Proxy για Shoutcast V1 Metadata ---
-// Ο συγκεκριμένος proxy διαβάζει τα metadata V1 και τα επιστρέφει σε απλό JSON
-const EXSTREAMER_PROXY_BASE = 'https://stream.exstreamer.com/api/v1/metadata?url=';
-
-// Το encodeURIComponent είναι απαραίτητο
-const API_URL = EXSTREAMER_PROXY_BASE + encodeURIComponent(URL_STREAMING); 
-const FALLBACK_API_URL = EXSTREAMER_PROXY_BASE + encodeURIComponent(URL_STREAMING); 
-
-// Visit https://api.vagalume.com.br/docs/ to get your API key
+// --- API FIX: Χρησιμοποιούμε twj.es Proxy ---
+const ENCODED_URL = encodeURIComponent(URL_STREAMING);
+const API_URL = 'https://twj.es/free/?url=' + ENCODED_URL; 
+const FALLBACK_API_URL = 'https://twj.es/metadata/?url=' + ENCODED_URL;
 const API_KEY = "18fe07917957c289983464588aabddfb";
 
 let userInteracted = true;
@@ -202,12 +197,40 @@ class Page {
 }
 
 // **ΔΙΟΡΘΩΜΕΝΗ LOGIC** για Shoutcast V1 XML (μέσω Exstreamer)
+// --- ΠΡΟΣΘΕΤΩ ΑΥΤΗ ΤΗ ΣΥΝΑΡΤΗΣΗ ΠΟΥ ΛΕΙΠΕΙ (fetchStreamingData) ---
+
+// --- ΠΡΟΣΘΗΚΗ: ΣΥΝΑΡΤΗΣΗ ΠΟΥ ΚΑΝΕΙ ΤΗΝ ΚΛΗΣΗ ΣΤΟ API (fetchStreamingData) ---
+async function fetchStreamingData(url) {
+    const response = await fetch(url, {
+        cache: "no-cache"
+    });
+
+    if (!response.ok) {
+        // Εάν αποτύχει η κλήση, προσπαθούμε με το fallback URL
+        if (url === API_URL) {
+            console.log("Προσπαθώ με το Fallback API URL...");
+            // Κάνουμε αναδρομική κλήση με το fallback URL
+            return fetchStreamingData(FALLBACK_API_URL);
+        }
+        // Εάν αποτύχει και η δεύτερη, πετάμε σφάλμα
+        throw new Error(`HTTP error! status: ${response.status} from ${url}`);
+    }
+
+    // Ο proxy (π.χ. twj.es) επιστρέφει JSON, οπότε το διαβάζουμε ως JSON
+    return await response.json(); 
+}
+
+// ----------------------------------------------------------------------
 async function getStreamingData() {
     try {
         let data = await fetchStreamingData(API_URL); 
         
-        // --- SHOUTCAST V1 PARSING (Exstreamer Proxy) ---
-        if (data && data.currentTrack) { 
+        // --- ΡΟΜΠΟΥΣΤΗ ΛΟΓΙΚΗ PARSING (για twj.es/οποιοδήποτε proxy) ---
+        const fullTitle = data.title || data.currentTrack || ""; // Ελέγχουμε για 'title' ή 'currentTrack'
+        const historyArray = data.history || []; 
+
+        // Εάν βρεθεί τίτλος σε οποιοδήποτε πεδίο, συνεχίζουμε
+        if (fullTitle) { 
             const page = new Page();
             
             // Το Exstreamer επιστρέφει το metadata στο 'currentTrack' ως "Artist - Title"
