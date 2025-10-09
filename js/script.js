@@ -1,18 +1,16 @@
-// **ΟΡΙΣΜΟΣ ΔΙΕΥΘΥΝΣΕΩΝ (Η ΜΟΝΗ ΣΩΣΤΗ ΔΙΑΡΡΥΘΜΙΣΗ)**
+// **ΟΡΙΣΜΟΣ ΔΙΕΥΘΥΝΣΕΩΝ (Η ΣΩΣΤΗ ΔΟΜΗ)**
 const RADIO_NAME = "AKOYFM"; 
 
 // 1. URL_STREAMING: Χρησιμοποιείται ΜΟΝΟ για τα API των ΤΙΤΛΩΝ (Metadata: τίτλοι & ιστορικό)
-// Αυτή η διεύθυνση είναι η σωστή για τα API των τίτλων (Listen2MyRadio με Port)
+// Χρησιμοποιούμε τη διεύθυνση με την Port 
 const URL_STREAMING = "https://uk24freenew.listen2myradio.com:9254/"; 
 
-// 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ (Η real διεύθυνση που μου δώσατε)
+// 2. URL_AUDIO: Χρησιμοποιείται για την αναπαραγωγή της ΜΟΥΣΙΚΗΣ (Η real διεύθυνση που μου έδωσες)
 const URL_AUDIO = "https://uk24freenew.listen2myradio.com/live.mp3?typeportmount=s1_9254_stream_741698340";
 
 //API URL /
 // Τα API για τους τίτλους χρησιμοποιούν υποχρεωτικά το URL_STREAMING
-const API_URL = 'https://twj.es/free/?url='+URL_STREAMING; 
-const FALLBACK_API_URL = 'https://twj.es/metadata/?url=' + URL_STREAMING;
-
+const API_URL = 'https://twj.es/free/?url='+:9254;
 // Visit https://api.vagalume.com.br/docs/ to get your API key
 const API_KEY = "18fe07917957c289983464588aabddfb";
 
@@ -348,7 +346,7 @@ const getDataFromITunes = async (artist, title, defaultArt, defaultCover) => {
 
 
 // Variável global para armazenar as músicas
-var audio = new Audio(URL_STREAMING);
+var audio = new Audio(URL_audio);
 
 // Player control
 class Player {
@@ -530,4 +528,4 @@ function intToDecimal(vol) {
 
 function decimalToInt(vol) {
     return vol * 100;
-} 
+ 
